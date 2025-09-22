@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Webcam Recorder",
+  "version": "1.0",
+  "description": "Record webcam video + audio and send to FastAPI backend.",
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": "example.png"
+  },
+  "permissions": ["tabs", "activeTab"]
+}
