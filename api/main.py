@@ -11,10 +11,6 @@ app.add_middleware(
     allow_methods=["*"],   
 )
 
-@app.options("/upload")  
-async def upload_options():
-    return JSONResponse(content={}, status_code=200)
-
 @app.post("/upload")
 async def upload_video(file: UploadFile = File(...)):
     content = await file.read()

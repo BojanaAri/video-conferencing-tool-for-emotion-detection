@@ -46,7 +46,7 @@ startBtn.addEventListener("click", async () => {
       }
     };
 
-    mediaRecorder.start(5000); // send data every 5 seconds
+    mediaRecorder.start(5000);
 
     startBtn.disabled = true;
     stopBtn.disabled = false;
