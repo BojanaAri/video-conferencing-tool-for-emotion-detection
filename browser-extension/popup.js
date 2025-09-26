@@ -5,6 +5,8 @@ let recordingInterval;
 let options;
 let userStopped = false;
 
+let predictionData = []; // Array to store prediction data
+
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
 const statusEl = document.getElementById("status");
@@ -19,6 +21,7 @@ async function uploadChunk(blob) {
       body: formData,
     });
     const result = await resp.json();
+    predictionData.push(result);
     console.log(`Chunk uploaded: ${result.message}`);
   } catch (err) {
     console.error("Chunk upload error:", err);
