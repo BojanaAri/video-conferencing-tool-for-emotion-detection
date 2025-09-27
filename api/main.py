@@ -113,7 +113,7 @@ def extract_audio_from_video(video_path, audio_output_path):
         return False
 
 # Initialize Vosk model and HuggingFace pipeline once
-vosk_model_path = r"C:\Users\mkuzm\vosk-model-small-en-us-0.15\vosk-model-small-en-us-0.15"
+vosk_model_path = r"C:\Users\pc\vosk-model-small-en-us-0.15\vosk-model-small-en-us-0.15"
 vosk_model = vosk.Model(vosk_model_path)
 emotion_classifier = pipeline(
     "text-classification",
@@ -125,23 +125,45 @@ emotion_classifier = pipeline(
 def transcribe_audio_vosk(audio_path):
     """Transcribe audio to text using Vosk"""
     try:
+        # Check if audio file exists and has content
+        if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
+            print("Audio file is empty or doesn't exist")
+            return ""
+            
         rec = vosk.KaldiRecognizer(vosk_model, 16000)
-        text = ""
-        with sf.SoundFile(audio_path) as f:
-            while True:
-                data = f.buffer_read(4000, dtype='int16')
-                if len(data) == 0:
-                    break
-                if rec.AcceptWaveform(data):
-                    result = json.loads(rec.Result())
-                    text += " " + result.get("text", "")
-            # Get final bits
-            final = json.loads(rec.FinalResult())
-            text += " " + final.get("text", "")
-        print("Transcript:", text)
-        return text.strip()
+        text_parts = []
+        
+        # Read audio file with soundfile
+        audio_data, sample_rate = sf.read(audio_path)
+        
+        # Convert to mono if stereo and ensure correct data type
+        if len(audio_data.shape) > 1:
+            audio_data = audio_data.mean(axis=1)
+        
+        # Convert to 16-bit PCM format that Vosk expects
+        audio_data = (audio_data * 32767).astype(np.int16)
+        
+        # Process in chunks
+        chunk_size = 4000
+        for i in range(0, len(audio_data), chunk_size):
+            chunk = audio_data[i:i+chunk_size].tobytes()
+            
+            if rec.AcceptWaveform(chunk):
+                result = json.loads(rec.Result())
+                if 'text' in result and result['text'].strip():
+                    text_parts.append(result['text'])
+        
+        # Get final result
+        final_result = json.loads(rec.FinalResult())
+        if 'text' in final_result and final_result['text'].strip():
+            text_parts.append(final_result['text'])
+        
+        transcript = " ".join(text_parts).strip()
+        print("Transcript:", transcript)
+        return transcript
+        
     except Exception as e:
-        print("Vosk transcription error:", e)
+        print("Vosk transcription error:", str(e))
         return ""
 
 def predict_emotion_from_text(text):
@@ -186,6 +208,7 @@ async def upload_video(file: UploadFile = File(...)):
             audio_probs = np.zeros(7)
             video_probs = np.zeros(7)
             text_probs = np.zeros(7)
+            transcript = "" 
             
             # Process video frames
             video_probs = process_video_frames(temp_file_path)
