@@ -3,14 +3,28 @@
   <head>
     <meta charset="utf-8" />
     <title>Webcam Recorder</title>
+    <style>
+      body { width: 350px; padding: 10px; }
+      button { margin: 5px 0; padding: 8px; width: 100%; }
+      #status { margin: 10px 0; font-weight: bold; }
+      #reportStatus { font-size: 12px; color: #666; }
+    </style>
   </head>
-  <body style="width: 300px;">
-  <h3>Webcam Recorder</h3>
-  <video id="preview" autoplay muted playsinline style="height: 0;"></video>
-  <br />
-  <button id="startBtn">Start Recording</button>
-  <button id="stopBtn" disabled>Stop Recording</button>
-  <p id="status"></p>
-  <script src="popup.js"></script>
+  <body>
+    <h3>Webcam Recorder</h3>
+    <video id="preview" autoplay muted playsinline style="height: 0;"></video>
+    
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn" disabled>Stop Recording</button>
+    <button id="reportBtn">Get Report (CSV)</button>
+    
+    <p id="status">Ready to record</p>
+    <p id="reportStatus">No data collected yet</p>
+
+    <script src="modules/recorder.js"></script>
+    <script src="modules/api.js"></script>
+    <script src="modules/report.js"></script>
+    <script src="utils/helpers.js"></script>
+    <script src="popup.js"></script>
   </body>
 </html>

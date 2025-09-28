@@ -7,5 +7,5 @@
     "default_popup": "index.html",
     "default_icon": "example.png"
   },
-  "permissions": ["tabs", "activeTab"]
+  "permissions": ["tabs", "activeTab", "downloads"]
 }

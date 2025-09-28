@@ -1,85 +1,95 @@
-let mediaRecorder;
-let recordedChunks = [];
-let stream;
-let recordingInterval;
-let options;
-let userStopped = false;
+class App {
+    constructor() {
+        this.recorder = new Recorder();
+        this.api = new API();
+        this.reportGenerator = new ReportGenerator();
+        this.predictionData = [];
+        
+        this.initializeElements();
+        this.attachEventListeners();
+        this.updateUI();
+    }
 
-let predictionData = []; // Array to store prediction data
+    initializeElements() {
+        this.startBtn = document.getElementById("startBtn");
+        this.stopBtn = document.getElementById("stopBtn");
+        this.reportBtn = document.getElementById("reportBtn");
+        this.statusEl = document.getElementById("status");
+        this.reportStatusEl = document.getElementById("reportStatus");
+        this.videoEl = document.getElementById("preview");
+    }
 
-const startBtn = document.getElementById("startBtn");
-const stopBtn = document.getElementById("stopBtn");
-const statusEl = document.getElementById("status");
-const videoEl = document.getElementById("preview");
+    attachEventListeners() {
+        this.startBtn.addEventListener("click", () => this.startRecording());
+        this.stopBtn.addEventListener("click", () => this.stopRecording());
+        this.reportBtn.addEventListener("click", () => this.generateReport());
+    }
 
-async function uploadChunk(blob) {
-  const formData = new FormData();
-  formData.append("file", blob, "recording_chunk.webm");
-  try {
-    const resp = await fetch("http://127.0.0.1:8000/upload", {
-      method: "POST",
-      body: formData,
-    });
-    const result = await resp.json();
-    predictionData.push(result);
-    console.log(`Chunk uploaded: ${result.message}`);
-  } catch (err) {
-    console.error("Chunk upload error:", err);
-  }
+    async startRecording() {
+        try {
+            this.statusEl.textContent = "Starting recording...";
+            
+            await this.recorder.startRecording((blob) => this.handleChunkReady(blob));
+            
+            this.startBtn.disabled = true;
+            this.stopBtn.disabled = false;
+            this.statusEl.textContent = "Recording...";
+            
+        } catch (err) {
+            this.statusEl.textContent = `Error: ${err.message}`;
+            console.error("Start recording error:", err);
+        }
+    }
+
+    stopRecording() {
+        this.recorder.stopRecording();
+        this.startBtn.disabled = false;
+        this.stopBtn.disabled = true;
+        this.statusEl.textContent = "Stopped recording";
+    }
+
+    async handleChunkReady(blob) {
+        try {
+            const result = await this.api.uploadChunk(blob);
+            const dataPoint = Helpers.createDataPoint(result);
+            dataPoint.chunkId = this.predictionData.length + 1;
+            
+            this.predictionData.push(dataPoint);
+            this.updateUI();
+            
+            console.log(`Chunk ${dataPoint.chunkId} uploaded successfully`);
+            
+        } catch (err) {
+            console.error("Error processing chunk:", err);
+        }
+    }
+
+    generateReport() {
+        if (!Helpers.validateData(this.predictionData)) {
+            alert("No data collected yet. Please record some video first.");
+            return;
+        }
+
+        try {
+            const csvContent = this.reportGenerator.generateCSV(this.predictionData);
+            const filename = Helpers.generateFilename('csv');
+            
+            this.reportGenerator.downloadReport(csvContent, filename);
+            this.reportStatusEl.textContent = `Report generated: ${filename}`;
+            
+        } catch (err) {
+            alert(`Error generating report: ${err.message}`);
+            console.error("Report generation error:", err);
+        }
+    }
+
+    updateUI() {
+        this.reportStatusEl.textContent = `Collected ${this.predictionData.length} data points`;
+        this.reportBtn.disabled = this.predictionData.length === 0;
+    }
 }
 
-startBtn.addEventListener("click", async () => {
-  try {
-    userStopped = false;
-    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    options = { mimeType: "video/webm; codecs=vp8,opus" };
-    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      options = { mimeType: "video/webm" };
-    }
-    startRecordingCycle();
-    startBtn.disabled = true;
-    stopBtn.disabled = false;
-    statusEl.textContent = "Recording...";
-    recordingInterval = setInterval(() => {
-      if (mediaRecorder && mediaRecorder.state === "recording") {
-        mediaRecorder.stop();
-      }
-    }, 5000);
-  } catch (err) {
-    statusEl.textContent = "Error: " + err.message;
-  }
+// Initialize the app when the DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    new App();
 });
-
-stopBtn.addEventListener("click", () => {
-  userStopped = true;
-  clearInterval(recordingInterval);
-  if (mediaRecorder && mediaRecorder.state !== "inactive") {
-    mediaRecorder.stop();
-  }
-  startBtn.disabled = false;
-  stopBtn.disabled = true;
-  statusEl.textContent = "Stopped.";
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop());
-  }
-});
-
-function startRecordingCycle() {
-  recordedChunks = [];
-  mediaRecorder = new MediaRecorder(stream, options);
-  mediaRecorder.ondataavailable = (e) => {
-    if (e.data.size > 0) {
-      recordedChunks.push(e.data);
-    }
-  };
-  mediaRecorder.onstop = async () => {
-    const blob = new Blob(recordedChunks, { type: "video/webm" });
-    await uploadChunk(blob);
-    // Only restart if not stopped by user
-    if (userStopped) {
-      return;
-    }
-    startRecordingCycle();
-  };
-  mediaRecorder.start();
-}
