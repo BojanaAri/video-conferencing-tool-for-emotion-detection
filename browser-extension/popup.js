@@ -4,6 +4,7 @@ class App {
         this.api = new API();
         this.reportGenerator = new ReportGenerator();
         this.predictionData = [];
+        this.currentEmotion = null;
         
         this.initializeElements();
         this.attachEventListeners();
@@ -17,6 +18,12 @@ class App {
         this.statusEl = document.getElementById("status");
         this.reportStatusEl = document.getElementById("reportStatus");
         this.videoEl = document.getElementById("preview");
+        
+        // Current Emotion elements
+        this.currentEmotionEl = document.getElementById("currentEmotion");
+        this.confidenceValueEl = document.getElementById("confidenceValue");
+        this.confidenceBarEl = document.getElementById("confidenceBar");
+        this.lastUpdateEl = document.getElementById("lastUpdate");
     }
 
     attachEventListeners() {
@@ -46,6 +53,9 @@ class App {
         this.startBtn.disabled = false;
         this.stopBtn.disabled = true;
         this.statusEl.textContent = "Stopped recording";
+        
+        // Clear current emotion when stopping
+        this.clearCurrentEmotion();
     }
 
     async handleChunkReady(blob) {
@@ -55,6 +65,9 @@ class App {
             dataPoint.chunkId = this.predictionData.length + 1;
             
             this.predictionData.push(dataPoint);
+            
+            // Update current emotion display
+            this.updateCurrentEmotion(dataPoint);
             this.updateUI();
             
             console.log(`Chunk ${dataPoint.chunkId} uploaded successfully`);
@@ -62,6 +75,44 @@ class App {
         } catch (err) {
             console.error("Error processing chunk:", err);
         }
+    }
+
+    updateCurrentEmotion(dataPoint) {
+        this.currentEmotion = dataPoint;
+        
+        // Update emotion text
+        this.currentEmotionEl.textContent = dataPoint.predicted_emotion || 'Unknown';
+        this.currentEmotionEl.className = 'emotion-display ' + this.getEmotionColorClass(dataPoint.predicted_emotion);
+        
+        // Update confidence
+        const confidencePercent = Math.round((dataPoint.confidence || 0) * 100);
+        this.confidenceValueEl.textContent = `${confidencePercent}%`;
+        this.confidenceBarEl.style.width = `${confidencePercent}%`;
+        
+        // Update timestamp
+        this.lastUpdateEl.textContent = `Last update: ${dataPoint.timestamp}`;
+    }
+
+    clearCurrentEmotion() {
+        this.currentEmotion = null;
+        this.currentEmotionEl.textContent = '--';
+        this.currentEmotionEl.className = 'emotion-display text-muted';
+        this.confidenceValueEl.textContent = '--%';
+        this.confidenceBarEl.style.width = '0%';
+        this.lastUpdateEl.textContent = 'Last update: --';
+    }
+
+    getEmotionColorClass(emotion) {
+        const colorMap = {
+            'Happy': 'text-success',
+            'Sad': 'text-primary',
+            'Angry': 'text-danger',
+            'Fear': 'text-warning',
+            'Surprise': 'text-info',
+            'Disgust': 'text-warning',
+            'Neutral': 'text-secondary'
+        };
+        return colorMap[emotion] || 'text-dark';
     }
 
     generateReport() {
